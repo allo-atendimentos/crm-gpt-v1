@@ -1,0 +1,631 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "debian-openssl-3.0.x"]
+
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Plan {
+  id             String   @id @default(uuid())
+  name           String
+  priceMonthly   Decimal  @default(0) @map("price_monthly") @db.Decimal(10, 2)
+  priceAnnual    Decimal  @default(0) @map("price_annual") @db.Decimal(10, 2)
+  currency       String   @default("BRL")
+  maxUsers       Int      @default(5) @map("max_users")
+  maxContacts    Int      @default(1000) @map("max_contacts")
+  maxChannels    Int      @default(3) @map("max_channels")
+  maxAutomations Int      @default(10) @map("max_automations")
+  features       Json     @default("{}")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  tenants        Tenant[]
+
+  @@map("plans")
+}
+
+model Tenant {
+  id            String    @id @default(uuid())
+  name          String
+  slug          String    @unique
+  domainCustom  String?   @map("domain_custom")
+  status        String    @default("trial")
+  planId        String?   @map("plan_id")
+  plan          Plan?     @relation(fields: [planId], references: [id])
+  trialEndsAt   DateTime? @map("trial_ends_at")
+  settings      Json      @default("{}")
+  logoUrl       String?   @map("logo_url")
+  logoIsPublic  Boolean   @default(true) @map("logo_is_public")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  productRecords Product[]
+  proposalRecords Proposal[]
+  channelRecords Channel[]
+  conversationRecords Conversation[]
+  messageRecords Message[]
+  automationRecords Automation[]
+  executionRecords Execution[]
+  campaignRecords Campaign[]
+  campaignRecipientRecords CampaignRecipient[]
+  knowledgeRecords Knowledge[]
+  agentRecords Agent[]
+  integrationRecords Integration[]
+  usageRecords Usage[]
+  billingRecords Billing[]
+  invoiceRecords Invoice[]
+  jobRecords Job[]
+  apiKeyRecords ApiKey[]
+  webhookEndpointRecords WebhookEndpoint[]
+  users           User[]
+  teams           Team[]
+  contacts        Contact[]
+  companies       Company[]
+  pipelines       Pipeline[]
+  stages          Stage[]
+  deals           Deal[]
+  tasks           Task[]
+  auditLogs       AuditLog[]
+  userInvitations UserInvitation[]
+
+  @@map("tenants")
+}
+
+model User {
+  id          String    @id @default(uuid())
+  tenantId    String?   @map("tenant_id")
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email       String    @unique
+  password    String
+  fullName    String    @map("full_name")
+  avatarUrl   String?   @map("avatar_url")
+  role        String    @default("agent")
+  status      String    @default("active")
+  phone       String?
+  timezone    String    @default("America/Sao_Paulo")
+  preferences Json      @default("{}")
+  lastSeenAt  DateTime? @map("last_seen_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  teamMemberships    TeamMember[]
+  supervisedTeams    Team[]         @relation("TeamSupervisor")
+  responsibleContacts Contact[]     @relation("ContactResponsible")
+  createdContacts    Contact[]      @relation("ContactCreator")
+  responsibleCompanies Company[]    @relation("CompanyResponsible")
+  createdCompanies   Company[]      @relation("CompanyCreator")
+  responsibleDeals   Deal[]         @relation("DealResponsible")
+  createdDeals       Deal[]         @relation("DealCreator")
+  assignedTasks      Task[]         @relation("TaskAssignee")
+  completedTasks     Task[]         @relation("TaskCompleter")
+  createdTasks       Task[]         @relation("TaskCreator")
+  auditLogs          AuditLog[]
+  sentInvitations    UserInvitation[]
+
+  accounts Account[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Team {
+  id           String       @id @default(uuid())
+  tenantId     String       @map("tenant_id")
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  color        String       @default("#3B82F6")
+  supervisorId String?      @map("supervisor_id")
+  supervisor   User?        @relation("TeamSupervisor", fields: [supervisorId], references: [id])
+  createdAt    DateTime     @default(now()) @map("created_at")
+  members      TeamMember[]
+  contacts     Contact[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId     String @map("team_id")
+  team       Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId     String @map("user_id")
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleInTeam String @default("member") @map("role_in_team")
+
+  @@id([teamId, userId])
+  @@map("team_members")
+}
+
+model Company {
+  id               String   @id @default(uuid())
+  tenantId         String   @map("tenant_id")
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name             String
+  cnpj             String?
+  industry         String?
+  size             String?
+  website          String?
+  address          Json     @default("{}")
+  phones           Json     @default("[]")
+  emails           Json     @default("[]")
+  responsibleUserId String? @map("responsible_user_id")
+  responsibleUser  User?    @relation("CompanyResponsible", fields: [responsibleUserId], references: [id])
+  tags             String[] @default([])
+  customFields     Json     @default("{}") @map("custom_fields")
+  notes            String?
+  revenueRange     String?  @map("revenue_range")
+  createdById      String?  @map("created_by")
+  createdBy        User?    @relation("CompanyCreator", fields: [createdById], references: [id])
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  contacts         Contact[]
+  deals            Deal[]
+
+  @@map("companies")
+}
+
+model Contact {
+  id               String    @id @default(uuid())
+  tenantId         String    @map("tenant_id")
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fullName         String    @map("full_name")
+  email            String?
+  phone            String?
+  phones           Json      @default("[]")
+  emails           Json      @default("[]")
+  companyId        String?   @map("company_id")
+  company          Company?  @relation(fields: [companyId], references: [id])
+  jobTitle         String?   @map("job_title")
+  source           String?
+  originCampaign   String?   @map("origin_campaign")
+  tags             String[]  @default([])
+  customFields     Json      @default("{}") @map("custom_fields")
+  responsibleUserId String?  @map("responsible_user_id")
+  responsibleUser  User?     @relation("ContactResponsible", fields: [responsibleUserId], references: [id])
+  teamId           String?   @map("team_id")
+  team             Team?     @relation(fields: [teamId], references: [id])
+  address          Json      @default("{}")
+  socialProfiles   Json      @default("{}") @map("social_profiles")
+  language         String    @default("pt-BR")
+  birthday         DateTime? @db.Date
+  notes            String?
+  contactStatus    String    @default("active") @map("contact_status")
+  mergedIntoId     String?   @map("merged_into_id")
+  mergedInto       Contact?  @relation("ContactMerge", fields: [mergedIntoId], references: [id])
+  mergedFrom       Contact[] @relation("ContactMerge")
+  consents         Json      @default("[]")
+  cpf              String?
+  createdById      String?   @map("created_by")
+  createdBy        User?     @relation("ContactCreator", fields: [createdById], references: [id])
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deals            Deal[]
+  tasks            Task[]
+
+  @@map("contacts")
+}
+
+model Pipeline {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  type      String   @default("sales")
+  color     String   @default("#3B82F6")
+  isDefault Boolean  @default(false) @map("is_default")
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  stages    Stage[]
+  deals     Deal[]
+
+  @@map("pipelines")
+}
+
+model Stage {
+  id             String   @id @default(uuid())
+  pipelineId     String   @map("pipeline_id")
+  pipeline       Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  tenantId       String   @map("tenant_id")
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  color          String   @default("#6B7280")
+  position       Int      @default(0)
+  isWon          Boolean  @default(false) @map("is_won")
+  isLost         Boolean  @default(false) @map("is_lost")
+  slaHours       Int?     @map("sla_hours")
+  probability    Int      @default(50)
+  requiredFields Json     @default("[]") @map("required_fields")
+  createdAt      DateTime @default(now()) @map("created_at")
+  deals          Deal[]
+
+  @@map("stages")
+}
+
+model Deal {
+  id                String    @id @default(uuid())
+  tenantId          String    @map("tenant_id")
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title             String
+  pipelineId        String?   @map("pipeline_id")
+  pipeline          Pipeline? @relation(fields: [pipelineId], references: [id])
+  stageId           String?   @map("stage_id")
+  stage             Stage?    @relation(fields: [stageId], references: [id])
+  contactId         String?   @map("contact_id")
+  contact           Contact?  @relation(fields: [contactId], references: [id])
+  companyId         String?   @map("company_id")
+  company           Company?  @relation(fields: [companyId], references: [id])
+  responsibleUserId String?   @map("responsible_user_id")
+  responsibleUser   User?     @relation("DealResponsible", fields: [responsibleUserId], references: [id])
+  value             Decimal   @default(0) @db.Decimal(12, 2)
+  currency          String    @default("BRL")
+  probability       Int       @default(50)
+  expectedCloseDate DateTime? @map("expected_close_date") @db.Date
+  priority          String    @default("medium")
+  source            String?
+  dealStatus        String    @default("open") @map("deal_status")
+  closeReason       String?   @map("close_reason")
+  lostReason        String?   @map("lost_reason")
+  lostReasonDetail  String?   @map("lost_reason_detail")
+  tags              String[]  @default([])
+  customFields      Json      @default("{}") @map("custom_fields")
+  notes             String?
+  position          Int       @default(0)
+  createdById       String?   @map("created_by")
+  createdBy         User?     @relation("DealCreator", fields: [createdById], references: [id])
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  closedAt          DateTime? @map("closed_at")
+  tasks             Task[]
+
+  @@map("deals")
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  type        String    @default("task")
+  taskStatus  String    @default("pending") @map("task_status")
+  priority    String    @default("medium")
+  assignedToId String?  @map("assigned_to")
+  assignedTo  User?     @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  contactId   String?   @map("contact_id")
+  contact     Contact?  @relation(fields: [contactId], references: [id])
+  dealId      String?   @map("deal_id")
+  deal        Deal?     @relation(fields: [dealId], references: [id])
+  dueAt       DateTime? @map("due_at")
+  reminderAt  DateTime? @map("reminder_at")
+  completedAt DateTime? @map("completed_at")
+  completedById String? @map("completed_by")
+  completedBy User?     @relation("TaskCompleter", fields: [completedById], references: [id])
+  createdById String?   @map("created_by")
+  createdBy   User?     @relation("TaskCreator", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("tasks")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  tenantId     String?  @map("tenant_id")
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  userId       String?  @map("user_id")
+  user         User?    @relation(fields: [userId], references: [id])
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  oldValue     Json?
+  newValue     Json?
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
+model UserInvitation {
+  id         String    @id @default(uuid())
+  tenantId   String    @map("tenant_id")
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email      String
+  role       String    @default("agent")
+  token      String    @unique @default(uuid())
+  invitedById String?  @map("invited_by")
+  invitedBy  User?     @relation(fields: [invitedById], references: [id])
+  expiresAt  DateTime  @map("expires_at")
+  acceptedAt DateTime? @map("accepted_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("user_invitations")
+}
+
+
+model Product {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ name String
+ code String
+ description String @default("")
+ price Decimal @default(0) @db.Decimal(14,2)
+ cost Decimal @default(0) @db.Decimal(14,2)
+ unit String @default("un")
+ active Boolean @default(true)
+ customFields Json @default("{}")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@unique([tenantId, code])
+ @@index([tenantId])
+}
+model Proposal {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ dealId String
+ title String
+ status String @default("draft")
+ items Json @default("[]")
+ total Decimal @default(0) @db.Decimal(14,2)
+ validUntil DateTime?
+ token String @unique @default(uuid())
+ acceptedAt DateTime?
+ acceptedName String?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([tenantId])
+}
+model Channel {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ name String
+ type String
+ provider String
+ externalId String?
+ credentials String @default("")
+ status String @default("configured")
+ webhookSecret String
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([tenantId])
+}
+model Conversation {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ channelId String
+ contactId String
+ dealId String?
+ assignedToId String?
+ subject String @default("")
+ status String @default("open")
+ botActive Boolean @default(false)
+ firstResponseAt DateTime?
+ resolvedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ messages Message[]
+ @@unique([tenantId,channelId,contactId])
+}
+model Message {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ conversationId String
+ conversation Conversation @relation(fields:[conversationId],references:[id],onDelete:Cascade)
+ direction String
+ content String
+ internal Boolean @default(false)
+ status String @default("queued")
+ externalId String?
+ error String?
+ createdAt DateTime @default(now())
+ @@unique([tenantId,externalId])
+ @@index([tenantId,conversationId])
+}
+model Automation {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ name String
+ trigger String @default("contact.created")
+ active Boolean @default(false)
+ version Int @default(1)
+ definition Json @default("{\"nodes\":[],\"edges\":[]}")
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ @@index([tenantId])
+}
+model Execution {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ automationId String
+ version Int
+ eventId String
+ status String @default("queued")
+ log Json @default("[]")
+ createdAt DateTime @default(now())
+ @@unique([automationId,eventId])
+ @@index([tenantId])
+}
+model Campaign {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ name String
+ channelId String
+ content String
+ template String?
+ tag String @default("")
+ status String @default("draft")
+ scheduledAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ recipients CampaignRecipient[]
+ @@index([tenantId])
+}
+model CampaignRecipient {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ campaignId String
+ campaign Campaign @relation(fields:[campaignId],references:[id],onDelete:Cascade)
+ contactId String
+ status String @default("queued")
+ externalId String?
+ error String?
+ sentAt DateTime?
+ @@unique([campaignId,contactId])
+ @@index([tenantId])
+}
+model Knowledge {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ title String
+ content String
+ createdAt DateTime @default(now())
+ @@index([tenantId])
+}
+model Agent {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ name String
+ instructions String @default("Atenda com clareza. Use apenas a base de conhecimento e encaminhe dúvidas ao atendente.")
+ model String @default("gpt-4.1-mini")
+ active Boolean @default(false)
+ channelId String?
+ monthlyLimit Int @default(100)
+ allowedActions Json @default("[]")
+ createdAt DateTime @default(now())
+ @@index([tenantId])
+}
+model Integration {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ provider String
+ credentials String
+ createdAt DateTime @default(now())
+ @@unique([tenantId,provider])
+}
+model Usage {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ type String
+ quantity Int @default(1)
+ metadata Json @default("{}")
+ createdAt DateTime @default(now())
+ @@index([tenantId,type,createdAt])
+}
+model Billing {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String @unique
+ plan String @default("essential")
+ status String @default("trial")
+ customerId String?
+ subscriptionId String? @unique
+ pendingSubscriptionId String? @unique
+ pendingPlan String?
+ checkoutUrl String?
+ paidUntil DateTime?
+ updatedAt DateTime @updatedAt
+}
+model Invoice {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id
+ tenantId String
+ amount Decimal @db.Decimal(14,2)
+ status String
+ url String?
+ dueAt DateTime
+ createdAt DateTime @default(now())
+ @@index([tenantId])
+}
+model Job {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ type String
+ payload Json
+ key String @unique
+ status String @default("queued")
+ attempts Int @default(0)
+ runAt DateTime @default(now())
+ lockedAt DateTime?
+ error String?
+ createdAt DateTime @default(now())
+ @@index([status,runAt])
+}
+model WebhookEvent {
+ id String @id
+ provider String
+ receivedAt DateTime @default(now())
+}
+model ApiKey {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ name String
+ hash String @unique
+ createdAt DateTime @default(now())
+}
+model WebhookEndpoint {
+ tenant Tenant @relation(fields:[tenantId],references:[id],onDelete:Cascade)
+ id String @id @default(uuid())
+ tenantId String
+ url String
+ secret String
+ active Boolean @default(true)
+ createdAt DateTime @default(now())
+}
+model PasswordToken {
+ id String @id @default(uuid())
+ userId String
+ hash String @unique
+ expiresAt DateTime
+ usedAt DateTime?
+}
+model RateLimit {
+ id String @id
+ count Int @default(1)
+ expiresAt DateTime
+}

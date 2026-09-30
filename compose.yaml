@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: boss
+      POSTGRES_USER: boss
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD}
+    volumes: ["database:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U boss -d boss"]
+      interval: 5s
+      retries: 20
+  migrate:
+    build: .
+    env_file: .env
+    command: sh -c "pnpm exec prisma migrate deploy && pnpm exec tsx scripts/seed.ts"
+    depends_on:
+      db: {condition: service_healthy}
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    expose: ["3000"]
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    command: pnpm worker
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy_config:/config
+    depends_on: [app]
+volumes:
+  database:
+  certificates:
+  caddy_config:

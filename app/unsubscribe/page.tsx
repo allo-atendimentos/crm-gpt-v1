@@ -1,0 +1,4 @@
+import {db} from '@/lib/prisma'
+import {equal} from '@/lib/crypto'
+import {createHmac} from 'node:crypto'
+export default async function Page({searchParams}:any){const q=await searchParams;const expected=createHmac('sha256',process.env.AUTH_SECRET!).update(q.tenant+':'+q.contact+':'+q.channel).digest('hex');let ok=false;if(equal(expected,q.token??'')){const c=await db.contact.findFirst({where:{id:q.contact,tenantId:q.tenant}});if(c){await db.contact.update({where:{id:c.id},data:{consents:(Array.isArray(c.consents)?c.consents:[]).map((x:any)=>x.channel===q.channel?{...x,granted:false,optedOutAt:new Date().toISOString()}:x)}});ok=true}}return <main className="max-w-xl mx-auto p-12"><h1 className="text-2xl font-bold">{ok?'Recebimento cancelado':'Link inválido'}</h1><p className="mt-4">{ok?'Sua preferência foi registrada. Você não receberá novas campanhas por este canal.':'Solicite ao remetente o cancelamento.'}</p></main>}

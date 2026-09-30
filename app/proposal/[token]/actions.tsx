@@ -1,0 +1,5 @@
+ 'use client'
+import {useState} from 'react'
+import {api} from '@/components/crm/resource-manager'
+import {toast} from 'sonner'
+export default function Actions({token}:{token:string}){const [name,setName]=useState(''),[accepted,setAccepted]=useState(false);return <form className="boss-panel no-print" onSubmit={async e=>{e.preventDefault();try{await api('/api/proposal/'+token,'POST',{name});location.reload()}catch(e:any){toast.error(e.message)}}}><h2>Aceite da proposta</h2><label>Seu nome completo<input required className="boss-input" minLength={3} value={name} onChange={e=>setName(e.target.value)}/></label><label className="block my-4 text-sm"><input required type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/> Li os itens e concordo com o valor desta proposta.</label><div className="flex gap-3"><button disabled={!accepted} className="primary">Aceitar proposta</button><button type="button" className="secondary" onClick={()=>window.print()}>Imprimir / salvar PDF</button></div></form>}
