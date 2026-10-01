@@ -13,13 +13,15 @@ function writeOriginAllowed(req:Request,origin:string|null){
  const requestOrigin=parsedOrigin(req.url)
  const appOrigin=parsedOrigin(process.env.APP_URL)
  if(origin===requestOrigin?.origin||origin===appOrigin?.origin)return true
- if(process.env.NODE_ENV==='production')return false
  const source=parsedOrigin(origin)
  if(!source)return false
  const loopback=new Set(['localhost','127.0.0.1','[::1]'])
- return [requestOrigin,appOrigin].some(target=>
+ const equivalentLoopback=[requestOrigin,appOrigin].some(target=>
   !!target&&loopback.has(source.hostname)&&loopback.has(target.hostname)&&source.protocol===target.protocol&&source.port===target.port
  )
+ if(equivalentLoopback)return true
+ if(process.env.NODE_ENV==='production')return false
+ return false
 }
 
 export async function route(req:Request,fn:()=>Promise<any>){
