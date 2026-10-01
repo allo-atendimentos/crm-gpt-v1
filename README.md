@@ -1,5 +1,7 @@
 # Boss e-business CRM
 
+Repositório: crm-gpt-v1 — CRM construído no GPT.
+
 Aplicação web com landing page e CRM multiempresa. Marca Boss, domínio de produção previsto `crm.allo.tec.br`. Código próprio ampliado a partir do projeto fornecido pelo cliente.
 
 ## Executar neste computador
