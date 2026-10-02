@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build --webpack",
-    "start": "next start",
+    "build": "next build --webpack && node scripts/prepare-standalone.mjs",
+    "start": "node scripts/start-production.mjs",
     "check": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

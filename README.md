@@ -26,11 +26,15 @@ O repositório inclui `railway.json` com build via Dockerfile, migrações/seed 
 Arquitetura recomendada no Railway:
 
 - 1 serviço PostgreSQL;
-- 1 serviço web usando este repositório e o comando padrão `pnpm start`;
-- 1 serviço worker usando o mesmo repositório, com Start Command sobrescrito para `pnpm worker`;
+- 1 serviço web usando este repositório e `railway.json`; `pnpm start` inicia o servidor standalone;
+- 1 serviço worker usando o mesmo repositório, com Config File Path `/railway.worker.json` (sem health check HTTP). Não sobrescreva apenas o Start Command: o `railway.json` da aplicação teria precedência;
 - as mesmas variáveis de aplicação nos serviços web e worker, especialmente `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, `APP_URL` e credenciais dos provedores habilitados.
 
 Antes de liberar clientes, aponte `crm.allo.tec.br` para o domínio público do serviço web, atualize `APP_URL=https://crm.allo.tec.br` e confirme `/api/health` retornando HTTP 200.
+
+Primeiro valide em um domínio temporário Railway com `APP_URL` igual à URL HTTPS desse domínio, `AUTH_TRUST_HOST=true`, `DATABASE_URL` apontando para o PostgreSQL persistente e chaves `AUTH_SECRET`/`ENCRYPTION_KEY` novas e iguais no web e worker. Não reutilize o banco nem as chaves locais. O seed cria somente planos, não usuários ou dados de demonstração.
+
+`pnpm build` inclui logo, widget, CSS e JavaScript na saída standalone. Para uma porta local diferente, configure `PORT`, `BIND_HOST=127.0.0.1` e `APP_URL` com a URL exata e execute `node --env-file=.env scripts/start-production.mjs`. A suíte HTTP aceita `TEST_BASE_URL` e cria empresas de QA: execute apenas em homologação. O banco de produção deve ter volume e backup configurados; integrações externas dependem das respectivas credenciais.
 
 ### Servidor Linux próprio
 
